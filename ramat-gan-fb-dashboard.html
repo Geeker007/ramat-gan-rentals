@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מודעות שכירות — רמת גן</title>
+
+<!-- ⬇️ החלף את 1264271971755463 ב-App ID מ-developers.facebook.com -->
+<meta property="fb:app_id" content="1264271971755463">
+
+<script async defer crossorigin="anonymous"
+  src="https://connect.facebook.net/he_IL/sdk.js#xfbml=1&version=v19.0&appId=1264271971755463">
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #f5c842;
+    --gold-dim: rgba(245,200,66,0.15);
+    --bg: #0a0a12;
+    --surface: #12121e;
+    --surface2: #1a1a28;
+    --border: rgba(255,255,255,0.07);
+    --text: #ececec;
+    --muted: #666;
+    --green: #2ecc71;
+    --red: #e74c3c;
+  }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    direction: rtl;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, rgba(245,200,66,0.06) 0%, transparent 60%);
+    border-bottom: 1px solid rgba(245,200,66,0.12);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { font-size: 26px; }
+  .logo-text h1 { font-size: 18px; font-weight: 900; color: var(--gold); letter-spacing: -0.02em; }
+  .logo-text p { font-size: 11px; color: var(--muted); }
+
+  #fb-login-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: #1877f2; color: white;
+    border: none; border-radius: 9px; padding: 10px 20px;
+    font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+  }
+  #fb-login-btn:hover { background: #166fe5; transform: translateY(-1px); }
+  #fb-login-btn .fb-icon { font-size: 16px; }
+
+  #user-info {
+    display: none; align-items: center; gap: 10px;
+  }
+  #user-info img {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid var(--gold);
+  }
+  #user-info span { font-size: 13px; font-weight: 600; }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    padding: 20px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: rgba(245,200,66,0.2); }
+  .stat-icon { font-size: 18px; margin-bottom: 6px; }
+  .stat-val { font-size: 22px; font-weight: 900; color: var(--gold); line-height: 1; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* ── MAIN LAYOUT ── */
+  .main-layout {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    height: calc(100vh - 140px);
+  }
+
+  /* ── LEFT PANEL (listings) ── */
+  .listings-panel {
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--surface);
+  }
+
+  .panel-title { font-size: 13px; font-weight: 700; color: var(--gold); }
+
+  .search-row {
+    display: flex; gap: 8px;
+  }
+
+  input[type="text"], input[type="number"], select {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text);
+    padding: 8px 12px; font-size: 12px;
+    font-family: 'Heebo', sans-serif; direction: rtl;
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: rgba(245,200,66,0.3); }
+
+  .search-input { flex: 1; }
+  .filter-select { width: 110px; cursor: pointer; }
+
+  .filters-row { display: flex; gap: 8px; }
+  .price-input { width: 120px; }
+
+  #sort-select { flex: 1; cursor: pointer; }
+
+  .listings-list {
+    flex: 1; overflow-y: auto;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .listings-list::-webkit-scrollbar { width: 4px; }
+  .listings-list::-webkit-scrollbar-track { background: transparent; }
+  .listings-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+  /* ── LISTING CARD ── */
+  .listing-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .listing-card:hover { border-color: rgba(245,200,66,0.3); transform: translateY(-1px); }
+  .listing-card.active { border-color: var(--gold); background: rgba(245,200,66,0.06); }
+  .listing-card.saved { border-color: rgba(245,200,66,0.25); }
+
+  .saved-badge {
+    position: absolute; top: 0; left: 0;
+    background: var(--gold); color: #111;
+    font-size: 9px; font-weight: 800;
+    padding: 3px 10px; border-bottom-right-radius: 8px;
+    letter-spacing: 0.04em;
+  }
+
+  .card-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .card-address { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .card-price {
+    font-size: 20px; font-weight: 900; color: var(--gold);
+    white-space: nowrap;
+  }
+  .card-price-sub { font-size: 10px; color: var(--muted); text-align: center; }
+
+  .card-details {
+    display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;
+  }
+  .detail-chip {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 9px;
+    font-size: 11px; color: #aaa;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+  .tag {
+    background: var(--gold-dim); color: var(--gold);
+    border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 4px; padding: 2px 7px;
+    font-size: 10px; font-weight: 700;
+  }
+
+  .card-footer {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .card-source { font-size: 10px; color: #444; }
+  .card-actions { display: flex; gap: 6px; }
+
+  .btn-save, .btn-contact, .btn-delete {
+    border: none; border-radius: 6px; padding: 5px 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    font-family: 'Heebo', sans-serif; transition: all 0.2s;
+  }
+  .btn-save {
+    background: rgba(255,255,255,0.05); color: #888;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .btn-save.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(245,200,66,0.3); }
+  .btn-contact { background: rgba(46,204,113,0.12); color: var(--green); border: 1px solid rgba(46,204,113,0.2); }
+  .btn-delete { background: rgba(231,76,60,0.08); color: var(--red); border: 1px solid rgba(231,76,60,0.15); }
+
+  /* ── MAP ── */
+  #map {
+    flex: 1;
+    z-index: 0;
+  }
+
+  /* ── EMPTY / LOADING STATE ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 40px; text-align: center;
+    color: var(--muted); flex: 1;
+  }
+  .empty-state .big-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 13px; line-height: 1.7; }
+
+  /* ── FB FETCH PANEL ── */
+  .fb-fetch-bar {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(24,119,242,0.05);
+    display: none;
+    flex-direction: column; gap: 8px;
+  }
+  .fb-fetch-bar.visible { display: flex; }
+  .fb-fetch-bar label { font-size: 11px; color: #888; }
+  .fb-fetch-row { display: flex; gap: 8px; align-items: center; }
+  .fb-fetch-row input { flex: 1; }
+
+  #fetch-btn {
+    background: #1877f2; color: white; border: none;
+    border-radius: 8px; padding: 8px 16px;
+    font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  #fetch-btn:hover { background: #166fe5; }
+  #fetch-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+  /* leaflet popups RTL */
+  .leaflet-popup-content { direction: rtl; font-family: 'Heebo', sans-serif; min-width: 180px; }
+  .popup-price { font-size: 18px; font-weight: 900; color: #e6a800; }
+  .popup-title { font-weight: 700; margin-bottom: 4px; }
+  .popup-detail { font-size: 12px; color: #555; }
+
+  /* count badge */
+  .count-badge {
+    display: inline-block;
+    background: var(--gold-dim); color: var(--gold);
+    border: 1px solid rgba(245,200,66,0.2);
+    border-radius: 20px; padding: 2px 10px;
+    font-size: 11px; font-weight: 700;
+    margin-right: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .main-layout { grid-template-columns: 1fr; grid-template-rows: 50vh 50vh; }
+    .stats-bar { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- FACEBOOK SDK placeholder init -->
+<script>
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId: '1264271971755463', // ← החלף כאן
+      cookie: true,
+      xfbml: true,
+      version: 'v19.0'
+    });
+    FB.getLoginStatus(handleLoginStatus);
+  };
+</script>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🏠</div>
+    <div class="logo-text">
+      <h1>מודעות שכירות — רמת גן</h1>
+      <p>שואב ומנתח מודעות מקבוצות פייסבוק</p>
+    </div>
+  </div>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div id="user-info">
+      <img id="user-pic" src="" alt="">
+      <span id="user-name"></span>
+    </div>
+    <button id="fb-login-btn" onclick="fbLogin()">
+      <span class="fb-icon">f</span>
+      כניסה עם פייסבוק
+    </button>
+  </div>
+</header>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="stat-icon">📋</div>
+    <div class="stat-val" id="stat-count">0</div>
+    <div class="stat-label">סה״כ מודעות</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📊</div>
+    <div class="stat-val" id="stat-avg">—</div>
+    <div class="stat-label">מחיר ממוצע</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">⬇️</div>
+    <div class="stat-val" id="stat-min">—</div>
+    <div class="stat-label">הזול ביותר</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📍</div>
+    <div class="stat-val" id="stat-groups">0</div>
+    <div class="stat-label">קבוצות מחוברות</div>
+  </div>
+</div>
+
+<div class="main-layout">
+  <!-- LEFT: Listings Panel -->
+  <div class="listings-panel">
+    <div class="panel-header">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span class="panel-title">מודעות <span class="count-badge" id="result-count">0</span></span>
+        <button onclick="showAddModal()" style="background:var(--gold);color:#111;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Heebo',sans-serif;">+ הוסף</button>
+      </div>
+
+      <!-- FB fetch bar (shown after login) -->
+      <div class="fb-fetch-bar" id="fb-fetch-bar">
+        <label>שלוף מודעות מקבוצה בפייסבוק:</label>
+        <div class="fb-fetch-row">
+          <input type="text" id="group-id-input" placeholder="Group ID (מה-URL של הקבוצה)">
+          <button id="fetch-btn" onclick="fetchFromGroup()">שלוף</button>
+        </div>
+        <div style="font-size:10px;color:#555;">
+          לדוגמה: מ-facebook.com/groups/<b>123456789</b> → הכנס 123456789
+        </div>
+      </div>
+
+      <div class="search-row">
+        <input type="text" class="search-input" id="search-input" placeholder="🔍 חפש..." oninput="renderListings()">
+        <select class="filter-select" id="filter-rooms" onchange="renderListings()">
+          <option value="">כל החדרים</option>
+          <option value="1">1</option><option value="1.5">1.5</option>
+          <option value="2">2</option><option value="2.5">2.5</option>
+          <option value="3">3</option><option value="3.5">3.5</option>
+          <option value="4">4</option><option value="4.5">4.5</option>
+          <option value="5">5+</option>
+        </select>
+      </div>
+      <div class="filters-row">
+        <input type="number" class="price-input" id="filter-max-price" placeholder="מחיר מקס ₪" oninput="renderListings()">
+        <select id="sort-select" onchange="renderListings()">
+          <option value="date">מיון: תאריך</option>
+          <option value="price_asc">מחיר ↑</option>
+          <option value="price_desc">מחיר ↓</option>
+          <option value="rooms">חדרים</option>
+        </select>
+        <button onclick="toggleSavedOnly()" id="saved-btn"
+          style="background:rgba(255,255,255,0.04);color:#888;border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;white-space:nowrap;">
+          ☆ שמורים
+        </button>
+      </div>
+    </div>
+
+    <div class="listings-list" id="listings-list">
+      <div class="empty-state">
+        <div class="big-icon">🏘️</div>
+        <p>התחבר עם פייסבוק כדי לשלוף מודעות<br>או הוסף ידנית עם כפתור +</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Map -->
+  <div id="map"></div>
+</div>
+
+<!-- Add Modal -->
+<div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:#15151f;border:1px solid rgba(245,200,66,0.2);border-radius:16px;padding:28px;width:460px;max-width:95vw;direction:rtl;font-family:'Heebo',sans-serif;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-size:16px;font-weight:800;color:var(--gold);">+ הוסף מודעה ידנית</div>
+      <button onclick="hideAddModal()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="grid-column:1/-1;">
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">כותרת *</label>
+        <input type="text" id="m-title" placeholder="3 חד׳ ברח׳ ביאליק" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">מחיר ₪ *</label>
+        <input type="number" id="m-price" placeholder="6500" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">חדרים</label>
+        <input type="number" id="m-rooms" placeholder="3" step="0.5" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">כתובת</label>
+        <input type="text" id="m-address" placeholder="ביאליק 45, רמת גן" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">קומה</label>
+        <input type="number" id="m-floor" placeholder="2" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">גודל מ״ר</label>
+        <input type="number" id="m-size" placeholder="80" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">טלפון</label>
+        <input type="text" id="m-contact" placeholder="054-..." style="width:100%;">
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">מקור</label>
+        <input type="text" id="m-source" placeholder="שם הקבוצה" style="width:100%;">
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:11px;color:#888;display:block;margin-bottom:5px;">תיאור</label>
+        <textarea id="m-desc" rows="2" placeholder="תיאור קצר..." style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;color:#f0f0f0;padding:8px 12px;font-size:12px;font-family:'Heebo',sans-serif;resize:none;outline:none;direction:rtl;"></textarea>
+      </div>
+    </div>
+    <button onclick="addManualListing()" style="margin-top:16px;width:100%;background:var(--gold);color:#111;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:'Heebo',sans-serif;">
+      + הוסף מודעה
+    </button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let listings = [];
+let activeId = null;
+let savedOnly = false;
+let mapMarkers = {};
+let geocodeCache = {};
+
+// Sample data
+const SAMPLES = [
+  { id: 1, title: "3 חדרים ברחוב ביאליק", price: 6200, rooms: 3, floor: 2, address: "ביאליק 45, רמת גן", size: 78, description: "דירה מוארת, מרפסת, חניה. ליד הרכבת.", source: "קבוצת השכרה רמת גן", date: "2026-03-19", tags: ["מרפסת", "חניה", "קרוב לרכבת"], contact: "054-1234567", saved: false, lat: 32.082, lng: 34.813 },
+  { id: 2, title: "4 חדרים קוסובסקי", price: 8500, rooms: 4, floor: 5, address: "קוסובסקי 12, רמת גן", size: 105, description: "ממ״ד, 2 חניות, נוף פתוח.", source: "דירות להשכרה גוש דן", date: "2026-03-20", tags: ["ממ״ד", "חניה", "יוקרה"], contact: "052-9876543", saved: true, lat: 32.0871, lng: 34.8083 },
+  { id: 3, title: "2.5 חדרים ז׳בוטינסקי", price: 5100, rooms: 2.5, floor: 1, address: "ז׳בוטינסקי 88, רמת גן", size: 62, description: "שיפוץ חדש, מעלית.", source: "הדירות של רמת גן", date: "2026-03-21", tags: ["שיפוץ חדש", "מעלית"], contact: "050-1112233", saved: false, lat: 32.079, lng: 34.8156 },
+  { id: 4, title: "3.5 חדרים אבן גבירול", price: 7200, rooms: 3.5, floor: 3, address: "אבן גבירול 22, רמת גן", size: 88, description: "שכונת הבורסה, מרפסת גדולה.", source: "קבוצת השכרה רמת גן", date: "2026-03-18", tags: ["מרפסת", "שכונת בורסה"], contact: "053-4455667", saved: false, lat: 32.0845, lng: 34.8104 },
+];
+
+// ── MAP INIT ──
+const map = L.map('map', { center: [32.0832, 34.8124], zoom: 14 });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+function priceColor(price) {
+  if (!price) return '#888';
+  if (price < 5500) return '#2ecc71';
+  if (price < 7500) return '#f5c842';
+  return '#e74c3c';
+}
+
+function addMapMarker(listing) {
+  if (!listing.lat || !listing.lng) return;
+  if (mapMarkers[listing.id]) { map.removeLayer(mapMarkers[listing.id]); }
+
+  const color = priceColor(listing.price);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="background:${color};color:#111;font-weight:800;font-size:11px;padding:4px 8px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:'Heebo',sans-serif;border:2px solid rgba(0,0,0,0.3);">₪${(listing.price||0).toLocaleString()}</div>`,
+    iconAnchor: [30, 16],
+  });
+
+  const marker = L.marker([listing.lat, listing.lng], { icon })
+    .addTo(map)
+    .bindPopup(`
+      <div class="popup-title">${listing.title}</div>
+      <div class="popup-price">₪${(listing.price||0).toLocaleString()}</div>
+      <div class="popup-detail">📍 ${listing.address || ''}</div>
+      <div class="popup-detail">🛏 ${listing.rooms || '?'} חדרים${listing.size ? ` · ${listing.size} מ״ר` : ''}${listing.floor != null ? ` · קומה ${listing.floor}` : ''}</div>
+      ${listing.contact ? `<div style="margin-top:8px;"><a href="tel:${listing.contact}" style="color:#1877f2;font-weight:700;">📞 ${listing.contact}</a></div>` : ''}
+    `)
+    .on('click', () => { setActive(listing.id); });
+
+  mapMarkers[listing.id] = marker;
+}
+
+function removeMapMarker(id) {
+  if (mapMarkers[id]) { map.removeLayer(mapMarkers[id]); delete mapMarkers[id]; }
+}
+
+// Geocode using Nominatim
+async function geocode(address) {
+  if (geocodeCache[address]) return geocodeCache[address];
+  try {
+    const q = encodeURIComponent(address + ', Israel');
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`);
+    const data = await res.json();
+    if (data[0]) {
+      const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      geocodeCache[address] = coords;
+      return coords;
+    }
+  } catch(e) {}
+  return null;
+}
+
+// ── LISTING MANAGEMENT ──
+function addListing(l) {
+  listings.unshift(l);
+  if (l.lat && l.lng) addMapMarker(l);
+  else if (l.address) {
+    geocode(l.address).then(coords => {
+      if (coords) {
+        l.lat = coords.lat; l.lng = coords.lng;
+        addMapMarker(l);
+      }
+    });
+  }
+  updateStats();
+  renderListings();
+}
+
+function deleteListing(id) {
+  listings = listings.filter(l => l.id !== id);
+  removeMapMarker(id);
+  updateStats();
+  renderListings();
+}
+
+function toggleSave(id) {
+  const l = listings.find(l => l.id === id);
+  if (l) { l.saved = !l.saved; renderListings(); }
+}
+
+function setActive(id) {
+  activeId = id;
+  const l = listings.find(l => l.id === id);
+  if (l && l.lat && l.lng) {
+    map.setView([l.lat, l.lng], 16);
+    if (mapMarkers[id]) mapMarkers[id].openPopup();
+  }
+  renderListings();
+}
+
+// ── RENDER ──
+function getFiltered() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const rooms = document.getElementById('filter-rooms').value;
+  const maxPrice = parseInt(document.getElementById('filter-max-price').value) || Infinity;
+  const sort = document.getElementById('sort-select').value;
+
+  let result = listings.filter(l => {
+    const matchSearch = !search || [l.title, l.address, l.description, ...(l.tags||[])].join(' ').toLowerCase().includes(search);
+    const matchRooms = !rooms || l.rooms == parseFloat(rooms);
+    const matchPrice = !l.price || l.price <= maxPrice;
+    const matchSaved = !savedOnly || l.saved;
+    return matchSearch && matchRooms && matchPrice && matchSaved;
+  });
+
+  result.sort((a, b) => {
+    if (sort === 'price_asc') return (a.price||0) - (b.price||0);
+    if (sort === 'price_desc') return (b.price||0) - (a.price||0);
+    if (sort === 'rooms') return (b.rooms||0) - (a.rooms||0);
+    return (b.date||'').localeCompare(a.date||'');
+  });
+
+  return result;
+}
+
+function renderListings() {
+  const container = document.getElementById('listings-list');
+  const filtered = getFiltered();
+  document.getElementById('result-count').textContent = filtered.length;
+
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state"><div class="big-icon">🔍</div><p>אין תוצאות</p></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(l => `
+    <div class="listing-card ${l.id === activeId ? 'active' : ''} ${l.saved ? 'saved' : ''}" onclick="setActive(${l.id})">
+      ${l.saved ? '<div class="saved-badge">★ שמור</div>' : ''}
+      <div class="card-top">
+        <div>
+          <div class="card-title">${l.title || 'ללא כותרת'}</div>
+          <div class="card-address">📍 ${l.address || '—'}</div>
+        </div>
+        <div style="text-align:center">
+          <div class="card-price" style="color:${priceColor(l.price)}">₪${(l.price||0).toLocaleString()}</div>
+          <div class="card-price-sub">לחודש</div>
+        </div>
+      </div>
+      <div class="card-details">
+        ${l.rooms ? `<div class="detail-chip">🛏 ${l.rooms} חד׳</div>` : ''}
+        ${l.size ? `<div class="detail-chip">📐 ${l.size} מ״ר</div>` : ''}
+        ${l.floor != null ? `<div class="detail-chip">🏢 קומה ${l.floor}</div>` : ''}
+      </div>
+      ${l.tags?.length ? `<div class="card-tags">${l.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
+      <div class="card-footer">
+        <div class="card-source">📣 ${l.source || ''} · ${l.date || ''}</div>
+        <div class="card-actions">
+          ${l.contact ? `<button class="btn-contact" onclick="event.stopPropagation();window.open('tel:${l.contact}')">📞</button>` : ''}
+          <button class="btn-save ${l.saved ? 'active' : ''}" onclick="event.stopPropagation();toggleSave(${l.id})">${l.saved ? '★' : '☆'}</button>
+          <button class="btn-delete" onclick="event.stopPropagation();deleteListing(${l.id})">✕</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateStats() {
+  const prices = listings.map(l => l.price).filter(Boolean);
+  document.getElementById('stat-count').textContent = listings.length;
+  document.getElementById('stat-avg').textContent = prices.length ? `₪${Math.round(prices.reduce((a,b)=>a+b,0)/prices.length).toLocaleString()}` : '—';
+  document.getElementById('stat-min').textContent = prices.length ? `₪${Math.min(...prices).toLocaleString()}` : '—';
+}
+
+function toggleSavedOnly() {
+  savedOnly = !savedOnly;
+  const btn = document.getElementById('saved-btn');
+  btn.style.background = savedOnly ? 'var(--gold-dim)' : 'rgba(255,255,255,0.04)';
+  btn.style.color = savedOnly ? 'var(--gold)' : '#888';
+  btn.style.borderColor = savedOnly ? 'rgba(245,200,66,0.3)' : 'var(--border)';
+  btn.textContent = savedOnly ? '★ שמורים' : '☆ שמורים';
+  renderListings();
+}
+
+// ── ADD MODAL ──
+function showAddModal() {
+  document.getElementById('add-modal').style.display = 'flex';
+}
+function hideAddModal() {
+  document.getElementById('add-modal').style.display = 'none';
+}
+function addManualListing() {
+  const title = document.getElementById('m-title').value;
+  const price = document.getElementById('m-price').value;
+  if (!title || !price) return;
+  addListing({
+    id: Date.now(),
+    title, price: parseInt(price),
+    rooms: parseFloat(document.getElementById('m-rooms').value) || null,
+    floor: document.getElementById('m-floor').value !== '' ? parseInt(document.getElementById('m-floor').value) : null,
+    address: document.getElementById('m-address').value,
+    size: document.getElementById('m-size').value ? parseInt(document.getElementById('m-size').value) : null,
+    contact: document.getElementById('m-contact').value,
+    description: document.getElementById('m-desc').value,
+    source: document.getElementById('m-source').value || 'הוספה ידנית',
+    date: new Date().toISOString().slice(0,10),
+    tags: [], saved: false,
+  });
+  hideAddModal();
+  ['m-title','m-price','m-rooms','m-floor','m-address','m-size','m-contact','m-source','m-desc'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+// ── FACEBOOK ──
+function handleLoginStatus(response) {
+  if (response.status === 'connected') {
+    showLoggedIn(response.authResponse.accessToken);
+  }
+}
+
+function fbLogin() {
+  if (typeof FB === 'undefined') {
+    alert('⚠️ Facebook SDK לא נטען.\nוודא שהחלפת 1264271971755463 ב-App ID אמיתי מ-developers.facebook.com');
+    return;
+  }
+  FB.login(response => {
+    if (response.authResponse) {
+      showLoggedIn(response.authResponse.accessToken);
+    }
+  }, { scope: 'public_profile,user_managed_groups' });
+}
+
+function showLoggedIn(token) {
+  window._fbToken = token;
+  FB.api('/me', { fields: 'name,picture' }, user => {
+    document.getElementById('fb-login-btn').style.display = 'none';
+    const uinfo = document.getElementById('user-info');
+    uinfo.style.display = 'flex';
+    document.getElementById('user-pic').src = user.picture?.data?.url || '';
+    document.getElementById('user-name').textContent = user.name;
+    document.getElementById('fb-fetch-bar').classList.add('visible');
+  });
+}
+
+function fetchFromGroup() {
+  const groupId = document.getElementById('group-id-input').value.trim();
+  if (!groupId) return;
+  const btn = document.getElementById('fetch-btn');
+  btn.disabled = true; btn.textContent = '⏳ שולף...';
+
+  const token = window._fbToken;
+  // Fetch group feed
+  FB.api(`/${groupId}/feed`, {
+    fields: 'message,created_time,from',
+    limit: 25,
+    access_token: token
+  }, response => {
+    btn.disabled = false; btn.textContent = 'שלוף';
+
+    if (response.error) {
+      alert(`שגיאה: ${response.error.message}\n\nייתכן שאין הרשאה לקבוצה זו, או שה-App ID לא מוגדר כראוי.`);
+      return;
+    }
+
+    const posts = response.data || [];
+    // filter rental posts (contain ₪ or שכירות etc.)
+    const rentalPosts = posts.filter(p => p.message && /₪|שכירות|להשכרה|חדרים|שח|שקל/i.test(p.message));
+
+    if (!rentalPosts.length) {
+      alert('לא נמצאו מודעות שכירות בקבוצה זו (25 הפוסטים האחרונים).');
+      return;
+    }
+
+    document.getElementById('stat-groups').textContent =
+      parseInt(document.getElementById('stat-groups').textContent || '0') + 1;
+
+    rentalPosts.forEach(post => {
+      const parsed = parseRentalPost(post.message, groupId);
+      addListing({
+        id: Date.now() + Math.random(),
+        ...parsed,
+        source: `קבוצה ${groupId}`,
+        date: post.created_time?.slice(0,10) || new Date().toISOString().slice(0,10),
+        fbPostId: post.id,
+        saved: false, tags: parsed.tags || [],
+      });
+    });
+  });
+}
+
+// Basic regex parser for rental posts (supplement with AI if needed)
+function parseRentalPost(text, groupId) {
+  const priceMatch = text.match(/(\d[\d,\.]+)\s*(?:₪|שח|ש"ח|שקל)/);
+  const price = priceMatch ? parseInt(priceMatch[1].replace(/[,\.]/g, '')) : null;
+
+  const roomsMatch = text.match(/(\d(?:\.\d)?)\s*(?:חדרים|חד'|חדר)/);
+  const rooms = roomsMatch ? parseFloat(roomsMatch[1]) : null;
+
+  const floorMatch = text.match(/קומה\s*(\d+)/);
+  const floor = floorMatch ? parseInt(floorMatch[1]) : null;
+
+  const sizeMatch = text.match(/(\d{2,3})\s*מ"ר|(\d{2,3})\s*מטר/);
+  const size = sizeMatch ? parseInt(sizeMatch[1] || sizeMatch[2]) : null;
+
+  // Extract address — look for street + number pattern
+  const addrMatch = text.match(/(?:רחוב|רח'|ברח'|ב)?\s*([א-ת\s'״]+\s+\d+)/);
+  const address = addrMatch ? addrMatch[1].trim() + ', רמת גן' : 'רמת גן';
+
+  const tags = [];
+  if (/מרפסת/.test(text)) tags.push('מרפסת');
+  if (/חניה/.test(text)) tags.push('חניה');
+  if (/ממ"ד|ממד/.test(text)) tags.push('ממ״ד');
+  if (/מעלית/.test(text)) tags.push('מעלית');
+  if (/שיפוץ|משופץ/.test(text)) tags.push('שיפוץ');
+  if (/נוף/.test(text)) tags.push('נוף פתוח');
+
+  const firstLine = text.split('\n')[0].slice(0, 60);
+
+  return { title: firstLine, price, rooms, floor, size, address, description: text.slice(0, 100), tags };
+}
+
+// ── INIT ──
+SAMPLES.forEach(s => {
+  listings.push(s);
+  addMapMarker(s);
+});
+updateStats();
+renderListings();
+document.getElementById('stat-count').textContent = listings.length;
+</script>
+
+</body>
+</html>
