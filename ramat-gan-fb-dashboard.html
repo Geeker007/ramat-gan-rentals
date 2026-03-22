@@ -791,65 +791,83 @@ renderListings();
 document.getElementById('stat-count').textContent = listings.length;
 
 // ── IMPORT FROM EXTENSION ──
-// When opened with ?import=1, read pendingPosts from Chrome extension storage
-if (window.location.search.includes('import=1') && typeof chrome !== 'undefined' && chrome.storage) {
-  chrome.storage.local.get(['pendingPosts'], (data) => {
-    const posts = data.pendingPosts || [];
-    if (!posts.length) {
-      alert('No posts found from extension. Try collecting again.');
-      return;
-    }
+function importFromExtension(posts) {
+  if (!posts || !posts.length) {
+    alert('No posts found. Try collecting again.');
+    return;
+  }
 
-    // Show import banner
-    const banner = document.createElement('div');
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#f5c842;color:#111;text-align:center;padding:12px;font-family:Heebo,sans-serif;font-weight:800;font-size:14px;';
-    banner.textContent = `⏳ Parsing ${posts.length} posts with AI...`;
-    document.body.appendChild(banner);
+  // Remove import flag from URL without reloading
+  window.history.replaceState({}, '', window.location.pathname);
 
-    let done = 0;
-    posts.forEach((postText, i) => {
-      setTimeout(() => {
-        fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1000,
-            system: `You are a rental listing parser for Israel. Extract data from the post and return ONLY valid JSON, no markdown, no preamble:
-{"title":"short title","price":number,"rooms":number,"floor":number_or_null,"address":"full address, Ramat Gan","size":number_or_null,"description":"max 100 chars","contact":"phone or null","tags":["tag1"]}`,
-            messages: [{ role: 'user', content: postText }]
-          })
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#f5c842;color:#111;text-align:center;padding:12px;font-family:Heebo,Arial,sans-serif;font-weight:800;font-size:14px;';
+  banner.textContent = '⏳ Parsing ' + posts.length + ' posts with AI...';
+  document.body.appendChild(banner);
+
+  let done = 0;
+  posts.forEach((postText, i) => {
+    setTimeout(() => {
+      fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: 'You are a rental listing parser for Israel. Extract data and return ONLY valid JSON, no markdown:\n{"title":"short title","price":number,"rooms":number,"floor":number_or_null,"address":"full address, Ramat Gan","size":number_or_null,"description":"max 100 chars","contact":"phone or null","tags":["tag1"]}',
+          messages: [{ role: 'user', content: postText }]
         })
-        .then(r => r.json())
-        .then(data => {
-          const raw = (data.content?.[0]?.text || '{}').replace(/```json|```/g, '').trim();
-          const parsed = JSON.parse(raw);
-          addListing({
-            ...parsed,
-            id: Date.now() + Math.random(),
-            source: 'Extension Import',
-            date: new Date().toISOString().slice(0, 10),
-            tags: parsed.tags || [],
-            saved: false,
-            raw: postText,
-          });
-        })
-        .catch(() => {})
-        .finally(() => {
-          done++;
-          banner.textContent = `⏳ Parsing ${done}/${posts.length} posts...`;
-          if (done === posts.length) {
-            banner.style.background = '#2ecc71';
-            banner.textContent = `✅ Imported ${listings.length - SAMPLES.length} listings from extension!`;
-            setTimeout(() => banner.remove(), 4000);
-            // Clear pending posts
-            chrome.storage.local.remove(['pendingPosts', 'collectedPosts', 'collectionDone']);
-          }
+      })
+      .then(r => r.json())
+      .then(data => {
+        const raw = (data.content?.[0]?.text || '{}').replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(raw);
+        addListing({
+          ...parsed,
+          id: Date.now() + Math.random(),
+          source: 'Extension Import',
+          date: new Date().toISOString().slice(0, 10),
+          tags: parsed.tags || [],
+          saved: false,
+          raw: postText,
         });
-      }, i * 1200); // stagger requests to avoid rate limiting
-    });
+      })
+      .catch(() => {})
+      .finally(() => {
+        done++;
+        banner.textContent = '⏳ Parsing ' + done + '/' + posts.length + ' posts...';
+        if (done === posts.length) {
+          banner.style.background = '#2ecc71';
+          banner.textContent = '✅ Imported ' + (listings.length - SAMPLES.length) + ' listings!';
+          localStorage.removeItem('pendingPosts');
+          setTimeout(() => banner.remove(), 4000);
+        }
+      });
+    }, i * 1200);
   });
 }
+
+// On page load — check for pending posts from extension
+window.addEventListener('load', () => {
+  // Method 1: injected directly by extension script
+  // Method 2: stored in localStorage
+  if (window.location.search.includes('import=1')) {
+    const stored = localStorage.getItem('pendingPosts');
+    if (stored) {
+      try {
+        const posts = JSON.parse(stored);
+        if (posts.length) { importFromExtension(posts); return; }
+      } catch(e) {}
+    }
+    // If no localStorage data yet, wait a moment for extension to inject it
+    setTimeout(() => {
+      const stored2 = localStorage.getItem('pendingPosts');
+      if (stored2) {
+        try { importFromExtension(JSON.parse(stored2)); } catch(e) {}
+      }
+    }, 2000);
+  }
+});
 </script>
 
 </body>
