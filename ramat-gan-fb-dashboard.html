@@ -480,10 +480,12 @@ function addMapMarker(listing) {
   if (mapMarkers[listing.id]) { map.removeLayer(mapMarkers[listing.id]); }
 
   const color = priceColor(listing.price);
+  const priceLabel = '₪' + (listing.price||0).toLocaleString();
   const icon = L.divIcon({
     className: '',
-    html: `<div style="background:${color};color:#111;font-weight:800;font-size:11px;padding:4px 8px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:'Heebo',sans-serif;border:2px solid rgba(0,0,0,0.3);">₪${(listing.price||0).toLocaleString()}</div>`,
-    iconAnchor: [30, 16],
+    html: `<div style="background:${color};color:#111;font-weight:800;font-size:11px;padding:4px 10px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:Arial,sans-serif;border:2px solid rgba(0,0,0,0.3);">${priceLabel}</div>`,
+    iconSize: [80, 28],
+    iconAnchor: [40, 14],
   });
 
   const marker = L.marker([listing.lat, listing.lng], { icon })
