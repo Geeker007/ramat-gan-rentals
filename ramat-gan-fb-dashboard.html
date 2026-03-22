@@ -687,7 +687,7 @@ function fbLogin() {
     if (response.authResponse) {
       showLoggedIn(response.authResponse.accessToken);
     }
-  }, { scope: 'public_profile,user_managed_groups' });
+  }, { scope: "public_profile" });
 }
 
 function showLoggedIn(token) {
