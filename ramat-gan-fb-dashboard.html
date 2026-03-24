@@ -5,13 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>מודעות שכירות — רמת גן</title>
 
-<!-- ⬇️ החלף את 1264271971755463 ב-App ID מ-developers.facebook.com -->
-<meta property="fb:app_id" content="1264271971755463">
-
-<script async defer crossorigin="anonymous"
-  src="https://connect.facebook.net/he_IL/sdk.js#xfbml=1&version=v19.0&appId=1264271971755463">
-</script>
-
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <script>
   (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries","places");e.set("key","AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les");e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key:"AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les",v:"weekly"});
@@ -328,16 +321,6 @@
       <p>שואב ומנתח מודעות מקבוצות פייסבוק</p>
     </div>
   </div>
-  <div style="display:flex; align-items:center; gap:12px;">
-    <div id="user-info">
-      <img id="user-pic" src="" alt="">
-      <span id="user-name"></span>
-    </div>
-    <button id="fb-login-btn">
-      <span class="fb-icon">f</span>
-      כניסה עם פייסבוק
-    </button>
-  </div>
 </header>
 
 <!-- Stats bar -->
@@ -371,18 +354,6 @@
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <span class="panel-title">מודעות <span class="count-badge" id="result-count">0</span></span>
         <button onclick="showAddModal()" style="background:var(--gold);color:#111;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:800;cursor:pointer;font-family:'Heebo',sans-serif;">+ הוסף</button>
-      </div>
-
-      <!-- FB fetch bar (shown after login) -->
-      <div class="fb-fetch-bar" id="fb-fetch-bar">
-        <label>שלוף מודעות מקבוצה בפייסבוק:</label>
-        <div class="fb-fetch-row">
-          <input type="text" id="group-id-input" placeholder="Group ID (מה-URL של הקבוצה)">
-          <button id="fetch-btn" onclick="fetchFromGroup()">שלוף</button>
-        </div>
-        <div style="font-size:10px;color:#555;">
-          לדוגמה: מ-facebook.com/groups/<b>123456789</b> → הכנס 123456789
-        </div>
       </div>
 
       <div class="search-row">
@@ -725,128 +696,6 @@ function addManualListing() {
   ['m-title','m-price','m-rooms','m-floor','m-address','m-size','m-contact','m-source','m-desc'].forEach(id => {
     document.getElementById(id).value = '';
   });
-}
-
-// ── FACEBOOK ──
-window.fbAsyncInit = function() {
-  FB.init({
-    appId: '1264271971755463',
-    cookie: true,
-    xfbml: true,
-    version: 'v19.0'
-  });
-  FB.getLoginStatus(handleLoginStatus);
-
-  // Wire login button here, after FB is ready
-  const btn = document.getElementById('fb-login-btn');
-  if (btn) btn.onclick = fbLogin;
-};
-
-function handleLoginStatus(response) {
-  if (response.status === 'connected') {
-    showLoggedIn(response.authResponse.accessToken);
-  }
-}
-
-function fbLogin() {
-  if (typeof FB === 'undefined') {
-    alert('⚠️ Facebook SDK לא נטען.\nוודא שהחלפת 1264271971755463 ב-App ID אמיתי מ-developers.facebook.com');
-    return;
-  }
-  FB.login(response => {
-    if (response.authResponse) {
-      showLoggedIn(response.authResponse.accessToken);
-    }
-  }, { scope: "public_profile" });
-}
-
-function showLoggedIn(token) {
-  window._fbToken = token;
-  FB.api('/me', { fields: 'name,picture' }, user => {
-    document.getElementById('fb-login-btn').style.display = 'none';
-    const uinfo = document.getElementById('user-info');
-    uinfo.style.display = 'flex';
-    document.getElementById('user-pic').src = user.picture?.data?.url || '';
-    document.getElementById('user-name').textContent = user.name;
-    document.getElementById('fb-fetch-bar').classList.add('visible');
-  });
-}
-
-function fetchFromGroup() {
-  const groupId = document.getElementById('group-id-input').value.trim();
-  if (!groupId) return;
-  const btn = document.getElementById('fetch-btn');
-  btn.disabled = true; btn.textContent = '⏳ שולף...';
-
-  const token = window._fbToken;
-  // Fetch group feed
-  FB.api(`/${groupId}/feed`, {
-    fields: 'message,created_time,from',
-    limit: 25,
-    access_token: token
-  }, response => {
-    btn.disabled = false; btn.textContent = 'שלוף';
-
-    if (response.error) {
-      alert(`שגיאה: ${response.error.message}\n\nייתכן שאין הרשאה לקבוצה זו, או שה-App ID לא מוגדר כראוי.`);
-      return;
-    }
-
-    const posts = response.data || [];
-    // filter rental posts (contain ₪ or שכירות etc.)
-    const rentalPosts = posts.filter(p => p.message && /₪|שכירות|להשכרה|חדרים|שח|שקל/i.test(p.message));
-
-    if (!rentalPosts.length) {
-      alert('לא נמצאו מודעות שכירות בקבוצה זו (25 הפוסטים האחרונים).');
-      return;
-    }
-
-    document.getElementById('stat-groups').textContent =
-      parseInt(document.getElementById('stat-groups').textContent || '0') + 1;
-
-    rentalPosts.forEach(post => {
-      const parsed = parseRentalPost(post.message, groupId);
-      addListing({
-        id: Date.now() + Math.random(),
-        ...parsed,
-        source: `קבוצה ${groupId}`,
-        date: post.created_time?.slice(0,10) || new Date().toISOString().slice(0,10),
-        fbPostId: post.id,
-        saved: false, tags: parsed.tags || [],
-      });
-    });
-  });
-}
-
-// Basic regex parser for rental posts (supplement with AI if needed)
-function parseRentalPost(text, groupId) {
-  const priceMatch = text.match(/(\d[\d,\.]+)\s*(?:₪|שח|ש"ח|שקל)/);
-  const price = priceMatch ? parseInt(priceMatch[1].replace(/[,\.]/g, '')) : null;
-
-  const roomsMatch = text.match(/(\d(?:\.\d)?)\s*(?:חדרים|חד'|חדר)/);
-  const rooms = roomsMatch ? parseFloat(roomsMatch[1]) : null;
-
-  const floorMatch = text.match(/קומה\s*(\d+)/);
-  const floor = floorMatch ? parseInt(floorMatch[1]) : null;
-
-  const sizeMatch = text.match(/(\d{2,3})\s*מ"ר|(\d{2,3})\s*מטר/);
-  const size = sizeMatch ? parseInt(sizeMatch[1] || sizeMatch[2]) : null;
-
-  // Extract address — look for street + number pattern
-  const addrMatch = text.match(/(?:רחוב|רח'|ברח'|ב)?\s*([א-ת\s'״]+\s+\d+)/);
-  const address = addrMatch ? addrMatch[1].trim() + ', רמת גן' : 'רמת גן';
-
-  const tags = [];
-  if (/מרפסת/.test(text)) tags.push('מרפסת');
-  if (/חניה/.test(text)) tags.push('חניה');
-  if (/ממ"ד|ממד/.test(text)) tags.push('ממ״ד');
-  if (/מעלית/.test(text)) tags.push('מעלית');
-  if (/שיפוץ|משופץ/.test(text)) tags.push('שיפוץ');
-  if (/נוף/.test(text)) tags.push('נוף פתוח');
-
-  const firstLine = text.split('\n')[0].slice(0, 60);
-
-  return { title: firstLine, price, rooms, floor, size, address, description: text.slice(0, 100), tags };
 }
 
 // geocoder initialized inside initMap
