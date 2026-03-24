@@ -13,7 +13,41 @@
 </script>
 
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les&libraries=places&callback=initMap"></script>
+<script>
+  (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries","places");e.set("key","AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les");e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key:"AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les",v:"weekly"});
+
+  async function initMap() {
+    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+    const { Geocoder } = await google.maps.importLibrary("geocoding");
+    const { Marker } = await google.maps.importLibrary("marker");
+
+    geocoder = new Geocoder();
+    map = new Map(document.getElementById('map'), {
+      center: { lat: 32.0832, lng: 34.8124 },
+      zoom: 14,
+      mapTypeId: 'roadmap',
+      styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+    });
+    infoWindow = new InfoWindow();
+
+    SAMPLES.forEach(s => { listings.push(s); addMapMarker(s); });
+    updateStats();
+    renderListings();
+    document.getElementById('stat-count').textContent = listings.length;
+
+    const hash = window.location.hash;
+    if (hash.includes('posts=')) {
+      try {
+        const posts = JSON.parse(decodeURIComponent(hash.split('posts=')[1]));
+        if (posts && posts.length) importFromExtension(posts);
+      } catch(e) { console.error('Failed to parse posts from URL:', e); }
+    }
+  }
+  initMap();
+</script>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -291,7 +325,7 @@
       <img id="user-pic" src="" alt="">
       <span id="user-name"></span>
     </div>
-    <button id="fb-login-btn" onclick="fbLogin()">
+    <button id="fb-login-btn">
       <span class="fb-icon">f</span>
       כניסה עם פייסבוק
     </button>
@@ -451,43 +485,10 @@ const SAMPLES = [
 // ── MAP INIT ──
 let map;
 let infoWindow;
+let geocoder;
 
-function initMap() {
-  geocoder = new google.maps.Geocoder();
-  map = new google.maps.Map(document.getElementById('map'), {
-    center: { lat: 32.0832, lng: 34.8124 },
-    zoom: 14,
-    mapTypeId: 'roadmap',
-    styles: [
-      { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-    ],
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-  });
-  infoWindow = new google.maps.InfoWindow();
+// initMap is defined in the head script block and called after Google Maps loads
 
-  // Add sample markers after map is ready
-  SAMPLES.forEach(s => {
-    listings.push(s);
-    addMapMarker(s);
-  });
-  updateStats();
-  renderListings();
-  document.getElementById('stat-count').textContent = listings.length;
-
-  // Check for import from extension
-  const hash = window.location.hash;
-  if (hash.includes('posts=')) {
-    try {
-      const encoded = hash.split('posts=')[1];
-      const posts = JSON.parse(decodeURIComponent(encoded));
-      if (posts && posts.length) importFromExtension(posts);
-    } catch(e) { console.error('Failed to parse posts from URL:', e); }
-  }
-}
-
-// initMap is called automatically by Google Maps callback
 
 function priceColor(price) {
   if (!price) return '#888888';
@@ -840,8 +841,7 @@ function parseRentalPost(text, groupId) {
   return { title: firstLine, price, rooms, floor, size, address, description: text.slice(0, 100), tags };
 }
 
-// geocoder is initialized inside initMap scope — defined above
-let geocoder;
+// geocoder initialized inside initMap
 
 // ── IMPORT FROM EXTENSION ──
 function importFromExtension(posts) {
