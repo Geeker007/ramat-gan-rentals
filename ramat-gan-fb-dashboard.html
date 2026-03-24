@@ -13,7 +13,7 @@
 </script>
 
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les&libraries=places"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les&libraries=places&callback=initMap"></script>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -277,18 +277,6 @@
 </head>
 <body>
 
-<!-- FACEBOOK SDK placeholder init -->
-<script>
-  window.fbAsyncInit = function() {
-    FB.init({
-      appId: '1264271971755463', // ← החלף כאן
-      cookie: true,
-      xfbml: true,
-      version: 'v19.0'
-    });
-    FB.getLoginStatus(handleLoginStatus);
-  };
-</script>
 
 <header>
   <div class="logo">
@@ -499,8 +487,7 @@ function initMap() {
   }
 }
 
-// Call initMap when page loads (Google Maps is loaded synchronously)
-window.addEventListener('load', initMap);
+// initMap is called automatically by Google Maps callback
 
 function priceColor(price) {
   if (!price) return '#888888';
@@ -563,7 +550,6 @@ function removeMapMarker(id) {
 }
 
 // Geocode using Google Maps Geocoding API
-const geocoder = new google.maps.Geocoder();
 async function geocode(address) {
   if (geocodeCache[address]) return geocodeCache[address];
   return new Promise((resolve) => {
@@ -733,6 +719,20 @@ function addManualListing() {
 }
 
 // ── FACEBOOK ──
+window.fbAsyncInit = function() {
+  FB.init({
+    appId: '1264271971755463',
+    cookie: true,
+    xfbml: true,
+    version: 'v19.0'
+  });
+  FB.getLoginStatus(handleLoginStatus);
+
+  // Wire login button here, after FB is ready
+  const btn = document.getElementById('fb-login-btn');
+  if (btn) btn.onclick = fbLogin;
+};
+
 function handleLoginStatus(response) {
   if (response.status === 'connected') {
     showLoggedIn(response.authResponse.accessToken);
