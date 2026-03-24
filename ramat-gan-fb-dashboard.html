@@ -39,11 +39,19 @@
     document.getElementById('stat-count').textContent = listings.length;
 
     const hash = window.location.hash;
-    if (hash.includes('posts=')) {
+    if (hash.includes('listings=')) {
       try {
-        const posts = JSON.parse(decodeURIComponent(hash.split('posts=')[1]));
-        if (posts && posts.length) importFromExtension(posts);
-      } catch(e) { console.error('Failed to parse posts from URL:', e); }
+        const parsedListings = JSON.parse(decodeURIComponent(hash.split('listings=')[1]));
+        if (parsedListings && parsedListings.length) {
+          window.history.replaceState({}, '', window.location.pathname);
+          const banner = document.createElement('div');
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#2ecc71;color:#111;text-align:center;padding:12px;font-family:Heebo,Arial,sans-serif;font-weight:800;font-size:14px;';
+          banner.textContent = '✅ Imported ' + parsedListings.length + ' listings!';
+          document.body.appendChild(banner);
+          parsedListings.forEach(l => addListing(l));
+          setTimeout(() => banner.remove(), 3000);
+        }
+      } catch(e) { console.error('Failed to parse listings:', e); }
     }
   }
   initMap();
