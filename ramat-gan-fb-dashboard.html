@@ -13,21 +13,20 @@
 </script>
 
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les&libraries=places"></script>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --gold: #f5c842;
-    --gold-dim: rgba(245,200,66,0.15);
-    --bg: #0a0a12;
-    --surface: #12121e;
-    --surface2: #1a1a28;
-    --border: rgba(255,255,255,0.07);
-    --text: #ececec;
-    --muted: #666;
+    --gold: #d4a017;
+    --gold-dim: rgba(212,160,23,0.12);
+    --bg: #f5f5f0;
+    --surface: #ffffff;
+    --surface2: #f8f8f5;
+    --border: rgba(0,0,0,0.08);
+    --text: #1a1a1a;
+    --muted: #888;
     --green: #2ecc71;
     --red: #e74c3c;
   }
@@ -42,14 +41,14 @@
 
   /* ── HEADER ── */
   header {
-    background: linear-gradient(135deg, rgba(245,200,66,0.06) 0%, transparent 60%);
-    border-bottom: 1px solid rgba(245,200,66,0.12);
+    background: linear-gradient(135deg, rgba(212,160,23,0.06) 0%, #ffffff 60%);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
     padding: 16px 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: sticky; top: 0; z-index: 100;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px); background: rgba(255,255,255,0.95);
   }
 
   .logo { display: flex; align-items: center; gap: 12px; }
@@ -121,7 +120,7 @@
   }
 
   input[type="text"], input[type="number"], select {
-    background: rgba(255,255,255,0.04);
+    background: rgba(0,0,0,0.03);
     border: 1px solid var(--border);
     border-radius: 8px; color: var(--text);
     padding: 8px 12px; font-size: 12px;
@@ -183,10 +182,10 @@
     display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;
   }
   .detail-chip {
-    background: rgba(255,255,255,0.04);
+    background: rgba(0,0,0,0.03);
     border: 1px solid var(--border);
     border-radius: 6px; padding: 3px 9px;
-    font-size: 11px; color: #aaa;
+    font-size: 11px; color: #333;
     display: flex; align-items: center; gap: 4px;
   }
 
@@ -201,7 +200,7 @@
   .card-footer {
     display: flex; justify-content: space-between; align-items: center;
   }
-  .card-source { font-size: 10px; color: #444; }
+  .card-source { font-size: 10px; color: #333; }
   .card-actions { display: flex; gap: 6px; }
 
   .btn-save, .btn-contact, .btn-delete {
@@ -210,7 +209,7 @@
     font-family: 'Heebo', sans-serif; transition: all 0.2s;
   }
   .btn-save {
-    background: rgba(255,255,255,0.05); color: #888;
+    background: rgba(0,0,0,0.04); color: #777;
     border: 1px solid rgba(255,255,255,0.08);
   }
   .btn-save.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(245,200,66,0.3); }
@@ -241,7 +240,7 @@
     flex-direction: column; gap: 8px;
   }
   .fb-fetch-bar.visible { display: flex; }
-  .fb-fetch-bar label { font-size: 11px; color: #888; }
+  .fb-fetch-bar label { font-size: 11px; color: #777; }
   .fb-fetch-row { display: flex; gap: 8px; align-items: center; }
   .fb-fetch-row input { flex: 1; }
 
@@ -252,13 +251,13 @@
     cursor: pointer; white-space: nowrap;
   }
   #fetch-btn:hover { background: #166fe5; }
-  #fetch-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+  #fetch-btn:disabled { background: #333; color: #555; cursor: not-allowed; }
 
   /* leaflet popups RTL */
   .leaflet-popup-content { direction: rtl; font-family: 'Heebo', sans-serif; min-width: 180px; }
   .popup-price { font-size: 18px; font-weight: 900; color: #e6a800; }
   .popup-title { font-weight: 700; margin-bottom: 4px; }
-  .popup-detail { font-size: 12px; color: #555; }
+  .popup-detail { font-size: 12px; color: #333; }
 
   /* count badge */
   .count-badge {
@@ -462,14 +461,49 @@ const SAMPLES = [
 ];
 
 // ── MAP INIT ──
-const map = L.map('map', { center: [32.0832, 34.8124], zoom: 14 });
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-  subdomains: 'abcd', maxZoom: 19
-}).addTo(map);
+let map;
+let infoWindow;
+
+function initMap() {
+  geocoder = new google.maps.Geocoder();
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: 32.0832, lng: 34.8124 },
+    zoom: 14,
+    mapTypeId: 'roadmap',
+    styles: [
+      { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+    ],
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+  });
+  infoWindow = new google.maps.InfoWindow();
+
+  // Add sample markers after map is ready
+  SAMPLES.forEach(s => {
+    listings.push(s);
+    addMapMarker(s);
+  });
+  updateStats();
+  renderListings();
+  document.getElementById('stat-count').textContent = listings.length;
+
+  // Check for import from extension
+  const hash = window.location.hash;
+  if (hash.includes('posts=')) {
+    try {
+      const encoded = hash.split('posts=')[1];
+      const posts = JSON.parse(decodeURIComponent(encoded));
+      if (posts && posts.length) importFromExtension(posts);
+    } catch(e) { console.error('Failed to parse posts from URL:', e); }
+  }
+}
+
+// Call initMap when page loads (Google Maps is loaded synchronously)
+window.addEventListener('load', initMap);
 
 function priceColor(price) {
-  if (!price) return '#888';
+  if (!price) return '#888888';
   if (price < 5500) return '#2ecc71';
   if (price < 7500) return '#f5c842';
   return '#e74c3c';
@@ -477,49 +511,73 @@ function priceColor(price) {
 
 function addMapMarker(listing) {
   if (!listing.lat || !listing.lng) return;
-  if (mapMarkers[listing.id]) { map.removeLayer(mapMarkers[listing.id]); }
+  if (mapMarkers[listing.id]) { mapMarkers[listing.id].setMap(null); }
 
   const color = priceColor(listing.price);
-  const priceLabel = '₪' + (listing.price||0).toLocaleString();
-  const icon = L.divIcon({
-    className: '',
-    html: `<div style="background:${color};color:#111;font-weight:800;font-size:11px;padding:4px 10px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5);font-family:Arial,sans-serif;border:2px solid rgba(0,0,0,0.3);">${priceLabel}</div>`,
-    iconSize: [80, 28],
-    iconAnchor: [40, 14],
+  const priceLabel = '₪' + (listing.price || 0).toLocaleString();
+
+  const marker = new google.maps.Marker({
+    position: { lat: listing.lat, lng: listing.lng },
+    map,
+    label: {
+      text: priceLabel,
+      color: '#111111',
+      fontWeight: 'bold',
+      fontSize: '11px',
+      fontFamily: 'Arial, sans-serif',
+    },
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: color,
+      fillOpacity: 1,
+      strokeColor: 'rgba(0,0,0,0.3)',
+      strokeWeight: 2,
+      scale: 18,
+    },
+    title: listing.title,
   });
 
-  const marker = L.marker([listing.lat, listing.lng], { icon })
-    .addTo(map)
-    .bindPopup(`
-      <div class="popup-title">${listing.title}</div>
-      <div class="popup-price">₪${(listing.price||0).toLocaleString()}</div>
-      <div class="popup-detail">📍 ${listing.address || ''}</div>
-      <div class="popup-detail">🛏 ${listing.rooms || '?'} חדרים${listing.size ? ` · ${listing.size} מ״ר` : ''}${listing.floor != null ? ` · קומה ${listing.floor}` : ''}</div>
-      ${listing.contact ? `<div style="margin-top:8px;"><a href="tel:${listing.contact}" style="color:#1877f2;font-weight:700;">📞 ${listing.contact}</a></div>` : ''}
-    `)
-    .on('click', () => { setActive(listing.id); });
+  // Use a custom overlay for pill-shaped labels
+  const overlay = new google.maps.marker.AdvancedMarkerElement
+    ? null : null; // fallback to standard marker
+
+  marker.addListener('click', () => {
+    setActive(listing.id);
+    infoWindow.setContent(`
+      <div style="direction:rtl;font-family:Heebo,Arial,sans-serif;min-width:180px;padding:4px;">
+        <div style="font-weight:800;font-size:14px;margin-bottom:4px;">${listing.title}</div>
+        <div style="font-size:18px;font-weight:900;color:#d4a017;">₪${(listing.price||0).toLocaleString()}</div>
+        <div style="font-size:12px;color:#555;margin-top:4px;">📍 ${listing.address || ''}</div>
+        <div style="font-size:12px;color:#555;">🛏 ${listing.rooms || '?'} חדרים${listing.size ? ` · ${listing.size} מ״ר` : ''}${listing.floor != null ? ` · קומה ${listing.floor}` : ''}</div>
+        ${listing.contact ? `<div style="margin-top:8px;"><a href="tel:${listing.contact}" style="color:#1877f2;font-weight:700;">📞 ${listing.contact}</a></div>` : ''}
+      </div>
+    `);
+    infoWindow.open(map, marker);
+  });
 
   mapMarkers[listing.id] = marker;
 }
 
 function removeMapMarker(id) {
-  if (mapMarkers[id]) { map.removeLayer(mapMarkers[id]); delete mapMarkers[id]; }
+  if (mapMarkers[id]) { mapMarkers[id].setMap(null); delete mapMarkers[id]; }
 }
 
-// Geocode using Nominatim
+// Geocode using Google Maps Geocoding API
+const geocoder = new google.maps.Geocoder();
 async function geocode(address) {
   if (geocodeCache[address]) return geocodeCache[address];
-  try {
-    const q = encodeURIComponent(address + ', Israel');
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`);
-    const data = await res.json();
-    if (data[0]) {
-      const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      geocodeCache[address] = coords;
-      return coords;
-    }
-  } catch(e) {}
-  return null;
+  return new Promise((resolve) => {
+    geocoder.geocode({ address: address + ', Israel' }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const loc = results[0].geometry.location;
+        const coords = { lat: loc.lat(), lng: loc.lng() };
+        geocodeCache[address] = coords;
+        resolve(coords);
+      } else {
+        resolve(null);
+      }
+    });
+  });
 }
 
 // ── LISTING MANAGEMENT ──
@@ -554,8 +612,9 @@ function setActive(id) {
   activeId = id;
   const l = listings.find(l => l.id === id);
   if (l && l.lat && l.lng) {
-    map.setView([l.lat, l.lng], 16);
-    if (mapMarkers[id]) mapMarkers[id].openPopup();
+    map.panTo({ lat: l.lat, lng: l.lng });
+    map.setZoom(16);
+    if (mapMarkers[id]) google.maps.event.trigger(mapMarkers[id], 'click');
   }
   renderListings();
 }
@@ -781,23 +840,14 @@ function parseRentalPost(text, groupId) {
   return { title: firstLine, price, rooms, floor, size, address, description: text.slice(0, 100), tags };
 }
 
-// ── INIT ──
-SAMPLES.forEach(s => {
-  listings.push(s);
-  addMapMarker(s);
-});
-updateStats();
-renderListings();
-document.getElementById('stat-count').textContent = listings.length;
+// geocoder is initialized inside initMap scope — defined above
+let geocoder;
 
 // ── IMPORT FROM EXTENSION ──
 function importFromExtension(posts) {
-  if (!posts || !posts.length) {
-    alert('No posts found. Try collecting again.');
-    return;
-  }
+  if (!posts || !posts.length) return;
 
-  // Remove import flag from URL without reloading
+  // Clean URL
   window.history.replaceState({}, '', window.location.pathname);
 
   const banner = document.createElement('div');
@@ -839,7 +889,6 @@ function importFromExtension(posts) {
         if (done === posts.length) {
           banner.style.background = '#2ecc71';
           banner.textContent = '✅ Imported ' + (listings.length - SAMPLES.length) + ' listings!';
-          localStorage.removeItem('pendingPosts');
           setTimeout(() => banner.remove(), 4000);
         }
       });
@@ -847,27 +896,7 @@ function importFromExtension(posts) {
   });
 }
 
-// On page load — check for pending posts from extension
-window.addEventListener('load', () => {
-  // Method 1: injected directly by extension script
-  // Method 2: stored in localStorage
-  if (window.location.search.includes('import=1')) {
-    const stored = localStorage.getItem('pendingPosts');
-    if (stored) {
-      try {
-        const posts = JSON.parse(stored);
-        if (posts.length) { importFromExtension(posts); return; }
-      } catch(e) {}
-    }
-    // If no localStorage data yet, wait a moment for extension to inject it
-    setTimeout(() => {
-      const stored2 = localStorage.getItem('pendingPosts');
-      if (stored2) {
-        try { importFromExtension(JSON.parse(stored2)); } catch(e) {}
-      }
-    }, 2000);
-  }
-});
+// Import is triggered from initMap() after map is ready
 </script>
 
 </body>
