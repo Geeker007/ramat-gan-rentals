@@ -12,28 +12,30 @@
   (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries","places");e.set("key","AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les");e.set("language","he");e.set("region","IL");e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key:"AIzaSyA_RbexG-GhWpf_swa0IWLGLcPu3io-les",v:"weekly"});
 
   async function initMap() {
-    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
-    const { Geocoder } = await google.maps.importLibrary("geocoding");
-    const { Marker } = await google.maps.importLibrary("marker");
+    try {
+      const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+      const { Geocoder } = await google.maps.importLibrary("geocoding");
 
-    geocoder = new Geocoder();
-    map = new Map(document.getElementById('map-modal-inner'), {
-      center: { lat: 32.0832, lng: 34.8124 },
-      zoom: 14,
-      mapTypeId: 'roadmap',
-      language: 'he',
-      region: 'IL',
-      styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-    infoWindow = new InfoWindow();
+      geocoder = new Geocoder();
+      map = new Map(document.getElementById('map-modal-inner'), {
+        center: { lat: 32.0832, lng: 34.8124 },
+        zoom: 14,
+        mapTypeId: 'roadmap',
+        language: 'he',
+        region: 'IL',
+        styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }],
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+      });
+      infoWindow = new InfoWindow();
+    } catch(e) {
+      console.warn('Google Maps failed to load:', e);
+    }
 
-    SAMPLES.forEach(s => { listings.push(s); addMapMarker(s); });
+    // Always run these even if map fails
     updateStats();
     renderListings();
-    document.getElementById('stat-count').textContent = listings.length;
 
     const hash = window.location.hash;
     if (hash.includes('listings=')) {
@@ -133,17 +135,14 @@
 
   /* ── MAIN LAYOUT ── */
   .main-layout {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 140px);
+    width: 100%;
+    padding: 0;
   }
 
   /* ── LEFT PANEL (listings) ── */
   .listings-panel {
-    flex: 1;
     width: 100%;
     display: flex; flex-direction: column;
-    overflow: hidden;
   }
 
   .panel-header {
@@ -178,12 +177,10 @@
   #sort-select { flex: 1; cursor: pointer; }
 
   .listings-list {
-    flex: 1; overflow-y: auto;
     padding: 16px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 12px;
-    align-content: start;
   }
   .listings-list::-webkit-scrollbar { width: 4px; }
   .listings-list::-webkit-scrollbar-track { background: transparent; }
