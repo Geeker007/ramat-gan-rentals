@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>מודעות שכירות — רמת גן</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
 
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <script>
@@ -249,11 +251,24 @@
   }
   .btn-save {
     background: rgba(0,0,0,0.04); color: #777;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(0,0,0,0.08);
   }
   .btn-save.active { background: var(--gold-dim); color: var(--gold); border-color: rgba(245,200,66,0.3); }
   .btn-contact { background: rgba(46,204,113,0.12); color: var(--green); border: 1px solid rgba(46,204,113,0.2); }
   .btn-delete { background: rgba(231,76,60,0.08); color: var(--red); border: 1px solid rgba(231,76,60,0.15); }
+
+  .neighborhood-btn {
+    background: rgba(0,0,0,0.04); color: #555;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 20px; padding: 4px 12px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    font-family: 'Heebo', sans-serif; transition: all 0.15s;
+  }
+  .neighborhood-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .neighborhood-btn.active {
+    background: var(--gold); color: #111;
+    border-color: var(--gold);
+  }
 
   /* ── MAP ── */
   #map {
@@ -367,10 +382,11 @@
           <option value="1">1</option><option value="1.5">1.5</option>
           <option value="2">2</option><option value="2.5">2.5</option>
           <option value="3">3</option><option value="3.5">3.5</option>
-          <option value="4">4</option><option value="4.5">4.5</option>
+          <option value="4" selected>4+</option><option value="4.5">4.5</option>
           <option value="5">5+</option>
         </select>
       </div>
+
       <div class="filters-row">
         <input type="number" class="price-input" id="filter-max-price" placeholder="מחיר מקס ₪" oninput="renderListings()">
         <select id="sort-select" onchange="renderListings()">
@@ -389,7 +405,7 @@
     <div class="listings-list" id="listings-list">
       <div class="empty-state">
         <div class="big-icon">🏘️</div>
-        <p>התחבר עם פייסבוק כדי לשלוף מודעות<br>או הוסף ידנית עם כפתור +</p>
+        <p>השתמש בתוסף כדי לאסוף מודעות<br>או הוסף ידנית עם כפתור +</p>
       </div>
     </div>
   </div>
@@ -462,16 +478,12 @@
 let listings = [];
 let activeId = null;
 let savedOnly = false;
+let activeHood = 'הכל';
 let mapMarkers = {};
 let geocodeCache = {};
 
-// Sample data
-const SAMPLES = [
-  { id: 1, title: "3 חדרים ברחוב ביאליק", price: 6200, rooms: 3, floor: 2, address: "ביאליק 45, רמת גן", size: 78, description: "דירה מוארת, מרפסת, חניה. ליד הרכבת.", source: "קבוצת השכרה רמת גן", date: "2026-03-19", tags: ["מרפסת", "חניה", "קרוב לרכבת"], contact: "054-1234567", saved: false, lat: 32.082, lng: 34.813 },
-  { id: 2, title: "4 חדרים קוסובסקי", price: 8500, rooms: 4, floor: 5, address: "קוסובסקי 12, רמת גן", size: 105, description: "ממ״ד, 2 חניות, נוף פתוח.", source: "דירות להשכרה גוש דן", date: "2026-03-20", tags: ["ממ״ד", "חניה", "יוקרה"], contact: "052-9876543", saved: true, lat: 32.0871, lng: 34.8083 },
-  { id: 3, title: "2.5 חדרים ז׳בוטינסקי", price: 5100, rooms: 2.5, floor: 1, address: "ז׳בוטינסקי 88, רמת גן", size: 62, description: "שיפוץ חדש, מעלית.", source: "הדירות של רמת גן", date: "2026-03-21", tags: ["שיפוץ חדש", "מעלית"], contact: "050-1112233", saved: false, lat: 32.079, lng: 34.8156 },
-  { id: 4, title: "3.5 חדרים אבן גבירול", price: 7200, rooms: 3.5, floor: 3, address: "אבן גבירול 22, רמת גן", size: 88, description: "שכונת הבורסה, מרפסת גדולה.", source: "קבוצת השכרה רמת גן", date: "2026-03-18", tags: ["מרפסת", "שכונת בורסה"], contact: "053-4455667", saved: false, lat: 32.0845, lng: 34.8104 },
-];
+// No sample data — real listings only
+const SAMPLES = [];
 
 // ── MAP INIT ──
 let map;
@@ -614,6 +626,13 @@ function setActive(id) {
 }
 
 // ── RENDER ──
+function toggleNeighborhood(btn, hood) {
+  activeHood = hood;
+  document.querySelectorAll('.neighborhood-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderListings();
+}
+
 function getFiltered() {
   const search = document.getElementById('search-input').value.toLowerCase();
   const rooms = document.getElementById('filter-rooms').value;
@@ -622,10 +641,11 @@ function getFiltered() {
 
   let result = listings.filter(l => {
     const matchSearch = !search || [l.title, l.address, l.description, ...(l.tags||[])].join(' ').toLowerCase().includes(search);
-    const matchRooms = !rooms || l.rooms == parseFloat(rooms);
+    const matchRooms = !rooms || l.rooms >= parseFloat(rooms);
     const matchPrice = !l.price || l.price <= maxPrice;
     const matchSaved = !savedOnly || l.saved;
-    return matchSearch && matchRooms && matchPrice && matchSaved;
+    const matchHood = activeHood === 'הכל' || (l.address || '').includes(activeHood) || (l.title || '').includes(activeHood) || (l.description || '').includes(activeHood);
+    return matchSearch && matchRooms && matchPrice && matchSaved && matchHood;
   });
 
   result.sort((a, b) => {
