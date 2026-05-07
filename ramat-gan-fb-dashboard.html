@@ -571,11 +571,31 @@ function importFromExtension(posts) {
         return r.json();
       })
       .then((data) => {
-        // Groq response shape: { choices: [{ message: { content: "..." } }] }
-        const raw = (data.choices?.[0]?.message?.content || '{}')
-          .replace(/```json|```/g, '')
+        const rawContent = data.choices?.[0]?.message?.content || '';
+        console.log(`[GROQ #${i}] raw response:`, rawContent);
+        if (data.error) console.error(`[GROQ #${i}] error in response:`, data.error);
+
+        // Robust JSON extraction: strip <think> tags, code fences, and grab the
+        // first {...} block in case the model wrapped the JSON in prose.
+        let cleaned = rawContent
+          .replace(/<think>[\s\S]*?<\/think>/g, '')   // strip reasoning blocks
+          .replace(/```(?:json)?/g, '')                // strip code fences
           .trim();
-        const parsed = JSON.parse(raw);
+
+        // Pull out the largest balanced {...} substring
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch (e) {
+          console.error(`[GROQ #${i}] JSON parse failed. Cleaned:`, cleaned);
+          throw e;
+        }
 
         if (parsed.skip) {
           skipped++;
@@ -593,7 +613,7 @@ function importFromExtension(posts) {
         });
         imported++;
       })
-      .catch((err) => {
+       .catch((err) => {
         failed++;
         console.error('Parse failed for post', i, err);
       })
